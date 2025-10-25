@@ -27,7 +27,7 @@ pub fn simplify_html(input: String, base: String) -> anyhow::Result<String> {
         "h4",
         "h5",
         "h6",
-        "img"
+        //        "img"
     ];
 
     let mut readability = readable_readability::Readability::new();
