@@ -70,15 +70,13 @@ impl Server {
         Query(query_params): Query<HashMap<String, String>>,
         Extension(ext): Extension<Arc<Context>>,
     ) -> impl IntoResponse {
-        let url = query_params
-            .get("url")
-            .map(|u| u.clone())
-            .unwrap_or("".to_string());
+        let url = query_params.get("url").cloned().unwrap_or("".to_string());
 
         let ext = Arc::clone(&ext);
 
         let content = if url.is_empty() {
-            "<h1>Welcome to BoingSearch Simplifier!</h1><p>Enter url and press 'GO' button</p>".to_string()
+            "<h1>Welcome to BoingSearch Simplifier!</h1><p>Enter url and press 'GO' button</p>"
+                .to_string()
         } else {
             match process_page(url.clone(), format!("{}browse/", ext.base_path.clone())).await {
                 Ok(e) => e,

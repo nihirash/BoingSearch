@@ -66,9 +66,8 @@ pub fn replacements(input: String, base_path: String) -> String {
     let r = input.replace("href=\"http", &format!("href=\"{base_path}?url=http"));
     // Some minor compatibility adaptations
     let r = r.replace("strong>", "b>");
-    let r = r.replace("em>", "i>");
 
-    r
+    r.replace("em>", "i>")
 }
 
 pub async fn process_page(page: String, base_path: String) -> anyhow::Result<String> {
