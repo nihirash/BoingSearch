@@ -15,6 +15,7 @@ deunicode = "1.6.2"
 duckduckgo = { version = "0.2.0", features = ["tokio"] }
 log = "0.4.28"
 maplit = "1.0.2"
+rand = "0.9.2"
 readable-readability = "0.4.0"
 reqwest = {version = "0.11.27", features=["cookies", "json"] }
 serde = { version = "1.0.228", features = ["derive", "serde_derive"] }
