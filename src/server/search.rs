@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use axum::response::{Html, IntoResponse};
+use deunicode::deunicode;
 use log::debug;
 use serde::Deserialize;
 use serpapi_search_rust::serp_api_search::SerpApiSearch;
@@ -71,11 +72,12 @@ impl SearchRequester {
                 let offset = query_params.get("offset").and_then(|o| str::parse(o).ok());
 
                 let serp_result = if free.is_empty() {
-                    self.get_serp(query.clone(), offset).await
+                    self.get_serp(query.clone(), offset)
+                        .await
+                        .unwrap_or(Vec::new())
                 } else {
-                    get_free_serp(query.clone()).await
-                }
-                .map_err(|e| Html(format!("<h1>Error while building serp</h1><p>{e}</p>")))?;
+                    get_free_serp(query.clone()).await.unwrap_or(Vec::new())
+                };
 
                 let req_left = self.show_request_left().await;
 
@@ -99,7 +101,7 @@ impl SearchRequester {
             </a>
             <a href={serp_item.link}>[Full version]</a><br/>
             <small>
-                {serp_item.snippet.clone().unwrap_or("".to_string())}
+                {deunicode(&serp_item.snippet.clone().unwrap_or("".to_string()))}
             </small>
             <hr/>
         }
