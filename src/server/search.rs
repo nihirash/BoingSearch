@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use axum::response::{Html, IntoResponse};
 use deunicode::deunicode;
-use log::debug;
+use log::{debug, warn};
 use serde::Deserialize;
 use serpapi_search_rust::serp_api_search::SerpApiSearch;
 use templr::{Template, templ, templ_ret};
@@ -61,7 +61,7 @@ impl SearchRequester {
         &self,
         query_params: HashMap<String, String>,
     ) -> impl IntoResponse + use<> {
-        let free = if query_params.contains_key("free") {
+        let mut free = if query_params.contains_key("free") {
             "checked".to_string()
         } else {
             "".to_string()
@@ -76,7 +76,17 @@ impl SearchRequester {
                         .await
                         .unwrap_or(Vec::new())
                 } else {
-                    get_free_serp(query.clone()).await.unwrap_or(Vec::new())
+                    match get_free_serp(query.clone()).await {
+                        Ok(v) => Ok(v),
+                        Err(e) => {
+                            warn!("Error requesting duckduckgo: {e}");
+
+                            free = "".to_string();
+                            self.get_serp(query.clone(), offset).await
+                        }
+                    }
+                    .map_err(|e| warn!("Error happens: {e}"))
+                    .unwrap_or(Vec::new())
                 };
 
                 let req_left = self.show_request_left().await;

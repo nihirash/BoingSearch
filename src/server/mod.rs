@@ -9,6 +9,7 @@ use axum::Extension;
 use axum::extract::Query;
 use axum::response::{Html, IntoResponse};
 use axum::{Router, routing::get};
+use log::info;
 use templr::Template;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
@@ -62,6 +63,9 @@ impl Server {
 
         let listener =
             tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await?;
+
+        info!("Started web server: http://{}:{}", self.host, self.port);
+
         axum::serve(listener, router.into_make_service()).await?;
 
         Ok(())
