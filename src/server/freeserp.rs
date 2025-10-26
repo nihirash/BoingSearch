@@ -3,7 +3,6 @@ use duckduckgo::browser::Browser;
 
 pub async fn get_free_serp(query: String) -> anyhow::Result<Vec<Serp>> {
     let req = reqwest::Client::builder()
-        .cookie_store(true)
         .user_agent(crate::USER_AGENT)
         .build()?;
 
