@@ -1,0 +1,15 @@
+[Unit]
+Description=BoingSearch server
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+WorkingDirectory=/var/boing/
+ExecStart=/var/boing/boing-search
+
+[Install]
+WantedBy=multi-user.target
