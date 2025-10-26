@@ -19,7 +19,7 @@ pub async fn get_free_serp(query: String) -> anyhow::Result<Vec<Serp>> {
             link: r.url.clone(),
             displayed_link: r.url.clone(),
             title: r.title.clone(),
-            snippet: r.snippet.clone(),
+            snippet: Some(r.snippet.clone()),
         })
         .collect();
 

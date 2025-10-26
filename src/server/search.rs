@@ -18,7 +18,7 @@ pub struct Serp {
     pub link: String,
     pub displayed_link: String,
     pub title: String,
-    pub snippet: String,
+    pub snippet: Option<String>,
 }
 
 #[derive(Clone)]
@@ -99,7 +99,7 @@ impl SearchRequester {
             </a>
             <a href={serp_item.link}>[Full version]</a><br/>
             <small>
-                {serp_item.snippet}
+                {serp_item.snippet.clone().unwrap_or("".to_string())}
             </small>
             <hr/>
         }
