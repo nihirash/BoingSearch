@@ -6,8 +6,10 @@ use serde::Deserialize;
 use serpapi_search_rust::serp_api_search::SerpApiSearch;
 use templr::{Template, templ, templ_ret};
 
+use crate::server::freeserp::get_free_serp;
+
 #[derive(Deserialize, Clone, Debug)]
-struct GoogleResult {
+struct SerpResult {
     pub organic_results: Vec<Serp>,
 }
 
@@ -47,7 +49,7 @@ impl SearchRequester {
             .await
             .map_err(|e| anyhow::anyhow!(format!("SERP Parsion error: {e}")))?;
 
-        let result: GoogleResult = serde_json::from_value(result)?;
+        let result: SerpResult = serde_json::from_value(result)?;
 
         debug!("{result:#?}");
 
@@ -58,25 +60,33 @@ impl SearchRequester {
         &self,
         query_params: HashMap<String, String>,
     ) -> impl IntoResponse + use<> {
+        let free = if query_params.contains_key("free") {
+            "checked".to_string()
+        } else {
+            "".to_string()
+        };
+
         match query_params.get("q") {
             Some(query) => {
                 let offset = query_params.get("offset").and_then(|o| str::parse(o).ok());
 
-                let serp_result = self
-                    .get_serp(query.clone(), offset)
-                    .await
-                    .map_err(|_| "Error while building serp")?;
+                let serp_result = if free.is_empty() {
+                    self.get_serp(query.clone(), offset).await
+                } else {
+                    get_free_serp(query.clone()).await
+                }
+                .map_err(|e| Html(format!("<h1>Error while building serp</h1><p>{e}</p>")))?;
 
                 let req_left = self.show_request_left().await;
 
-                Self::build_serp_result_page(query.clone(), serp_result, req_left)
+                Self::build_serp_result_page(query.clone(), serp_result, req_left, free)
                     .render(&())
-                    .map_err(|_| "Error builting page")
+                    .map_err(|e| Html(format!("<h1>Error while building page</h1><p>{e}</p>")))
                     .map(Html)
             }
             None => Self::build_home_page()
                 .render(&())
-                .map_err(|_| "Error builting page")
+                .map_err(|e| Html(format!("<h1>Error while building page</h1><p>{e}</p>")))
                 .map(Html),
         }
     }
@@ -116,6 +126,7 @@ impl SearchRequester {
         query: String,
         serp_result: Vec<Serp>,
         req_left: String,
+        free_search: String,
     ) -> templ_ret!['static] {
         templ! {
             <html>
@@ -124,24 +135,38 @@ impl SearchRequester {
             </head>
             <body>
                 <form action="/" method= "get">
-                    <a href="/"><img src="/static/logo.gif" alt="BoingSearch Logo" /></a>
+                    <table widht="100%" border="0">
+                        <tr widht="100%">
+                            <td>
+                                <a href="/"><img src="/static/logo.gif" alt="BoingSearch Logo" /></a>
+                            </td>
+                            <td>
+                                    Search results for: <input type="text" size="30" name="q" value={query}/><br/><br/>
+                                    #if free_search.is_empty() {
+                                        <input type="checkbox" name="free" /> Use only free requests | <input type="submit" value="Search!"/><br/>
+                                    } else {
+                                        <input type="checkbox" name="free" checked /> Use only free requests | <input type="submit" value="Search!"/><br/>
+                                    }
+                            </td>
+                        </tr>
+                    </table>
+                </form>
 
-                    Search results for:
-                        <input type="text" size="30" name="q" value={query}/>
-                        <input type="submit" value="Search!"/>
-                    </form>
-                    <hr/>
+                <hr/>
 
                     #for item in &serp_result {
                         #Self::render_serp_item(item.clone());
                         <br/>
                     }
-                    <center>
-                        #for n in 0..10 {
-                            #let link = format!("/?q={query}&offset={}", n * 10);
-                            <a href={link}>{n+1}</a>&nbsp;
-                        }
-                    </center>
+
+                    #if free_search.is_empty() {
+                        <center>
+                            #for n in 0..10 {
+                                #let link = format!("/?q={query}&offset={}", n * 10);
+                                <a href={link}>{n+1}</a>&nbsp;
+                            }
+                        </center>
+                    }
 
                 <center>
                     <b>{req_left}</b>
@@ -174,6 +199,8 @@ impl SearchRequester {
                     <form action="/" method="get">
                     I am looking for: <br/>
                         <input type="text" size="30" name="q"/> <br/>
+                        <input type="checkbox" name="free" checked /> Use only free requests(Bypass paid SerpAPI) <br/>
+                        <small>Free search uses duckduckgo engine, SerpAPI 's one - uses Google</small> <br/>
                         <input type="submit" value="Search!"/>
                     </form>
                 </center>

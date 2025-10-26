@@ -3,6 +3,8 @@ pub mod server;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+pub const USER_AGENT: &str = "Mozilla/5.0 (compatible; IBrowse 3.0; AmigaOS4.0)";
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppConfig {
     pub host: String,

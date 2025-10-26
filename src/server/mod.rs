@@ -1,3 +1,4 @@
+pub mod freeserp;
 pub mod search;
 pub mod simplifier;
 

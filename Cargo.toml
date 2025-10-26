@@ -12,10 +12,11 @@ anyhow = "1.0.100"
 axum = { version = "0.8.6", features = ["json", "http1", "tokio"] }
 colog = "1.4.0"
 deunicode = "1.6.2"
+duckduckgo = { version = "0.2.0", features = ["tokio"] }
 log = "0.4.28"
 maplit = "1.0.2"
 readable-readability = "0.4.0"
-reqwest = "0.12.24"
+reqwest = {version = "0.11.27", features=["cookies", "json"] }
 serde = { version = "1.0.228", features = ["derive", "serde_derive"] }
 serde_json = "1.0.145"
 serpapi-search-rust = "0.1.1"

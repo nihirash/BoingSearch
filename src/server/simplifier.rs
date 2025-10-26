@@ -1,5 +1,4 @@
 use ammonia::Builder;
-use axum::http::HeaderValue;
 use deunicode;
 use maplit::hashset;
 use std::str::FromStr;
@@ -73,14 +72,8 @@ pub fn replacements(input: String, base_path: String) -> String {
 pub async fn process_page(page: String, base_path: String) -> anyhow::Result<String> {
     let url = Url::from_str(&page)?;
 
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.append(
-        "User-Agent",
-        HeaderValue::from_str("Mozilla/5.0 (compatible; IBrowse 3.0; AmigaOS4.0)")?,
-    );
-
     let body = reqwest::Client::builder()
-        .default_headers(headers)
+        .user_agent(crate::USER_AGENT)
         .build()?
         .get(url.clone())
         .send()
@@ -105,6 +98,10 @@ pub fn proxy_page(path: String, content: String) -> templ_ret!['static] {
             <form action="/browse/" method="get">
                 <a href="/">Back to the root!</a> | Current URL:
                 <input type="text" size="30" name="url" value={path}/> <input type="submit" value="Go!"/>
+                #if !path.is_empty() {
+                    <br/>
+                    <a href={path}>Open full version!</a>
+                }
             </form>
             <hr/>
 
@@ -129,7 +126,7 @@ mod tests {
         .await?;
 
         let mut file = std::fs::File::create("test.html")?;
-        write!(file, "{page}");
+        write!(file, "{page}")?;
 
         Ok(())
     }
