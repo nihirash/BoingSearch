@@ -58,7 +58,7 @@ impl DuckDuckRequester {
             .get("href")
             .ok_or(anyhow::anyhow!("No href in link"))?;
 
-        let url = url::Url::from_str(&format!("http:{dd_url}"))?;
+        let url = url::Url::from_str(&format!("https:{dd_url}"))?;
         let query = url
             .query_pairs()
             .into_owned()
@@ -159,7 +159,7 @@ impl DuckDuckRequester {
 
         let result = client
             .get(format!(
-                "http://lite.duckduckgo.com/lite/?kl=wt-wt&q={query}"
+                "https://lite.duckduckgo.com/lite/?kl=wt-wt&q={query}"
             ))
             .send()
             .await?;
