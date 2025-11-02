@@ -20,9 +20,9 @@ pub fn serp_result_page(query: String, serp_result: SearchResponse) -> anyhow::R
                             <td>
                                     Search results for: <input type="text" size="30" name="q" value={query}/><br/><br/>
                                     #if serp_result.inputs.contains_key("premium") {
-                                        <input type="checkbox" name="premium" /> Use SerpAPI for search | <input type="submit" value="Search!"/><br/>
-                                    } else {
                                         <input type="checkbox" name="premium" checked /> Use SerpAPI for search | <input type="submit" value="Search!"/><br/>
+                                    } else {
+                                        <input type="checkbox" name="premium" /> Use SerpAPI for search | <input type="submit" value="Search!"/><br/>
                                     }
                             </td>
                         </tr>
