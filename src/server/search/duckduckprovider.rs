@@ -33,7 +33,7 @@ pub struct DuckDuckRequester {
 impl DuckDuckRequester {
     pub fn new(req_spacing_secs: i64, proxies: Vec<String>) -> DuckDuckRequester {
         Self {
-            last_access_time: Arc::new(AtomicI64::new(Utc::now().timestamp())),
+            last_access_time: Arc::new(AtomicI64::new(0)),
             req_spacing_secs,
             proxies,
             proxy_counter: Arc::new(AtomicUsize::new(Utc::now().timestamp() as usize)),
@@ -98,8 +98,6 @@ impl DuckDuckRequester {
         if let Ok(tables) = page.select("table") {
             for table in tables {
                 if table.as_node().select("a.result-link").is_ok() {
-                    info!("Found!!");
-
                     if let Ok(items) = table.as_node().select("tr") {
                         let items = items.chunks(4);
                         for item in &items {
