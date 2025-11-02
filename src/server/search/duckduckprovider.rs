@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicUsize};
+use std::time::Duration;
 
 use kuchiki::parse_html;
 use kuchiki::traits::*;
@@ -72,7 +73,7 @@ impl DuckDuckRequester {
             link: target,
             displayed_link: deunicode::deunicode(&display_url),
             title: deunicode::deunicode(&head_text),
-            snippet: snippet,
+            snippet,
         })
     }
 
@@ -97,16 +98,16 @@ impl DuckDuckRequester {
 
         if let Ok(tables) = page.select("table") {
             for table in tables {
-                if table.as_node().select("a.result-link").is_ok() {
-                    if let Ok(items) = table.as_node().select("tr") {
-                        let items = items.chunks(4);
-                        for item in &items {
-                            let item = item.collect::<Vec<_>>();
+                if table.as_node().select("a.result-link").is_ok()
+                    && let Ok(items) = table.as_node().select("tr")
+                {
+                    let items = items.chunks(4);
+                    for item in &items {
+                        let item = item.collect::<Vec<_>>();
 
-                            match Self::try_extract_serp(item) {
-                                Ok(serp) => serp_items.push(serp),
-                                Err(e) => warn!("Error happens: {e:?}"),
-                            }
+                        match Self::try_extract_serp(item) {
+                            Ok(serp) => serp_items.push(serp),
+                            Err(e) => warn!("Error happens: {e:?}"),
                         }
                     }
                 }
@@ -139,12 +140,13 @@ impl DuckDuckRequester {
         info!("Using proxy: {proxy}");
 
         let client = reqwest::Client::builder()
-            .cookie_store(false)
+            .cookie_store(true)
             .http1_only()
             .redirect(Policy::limited(30))
             .default_headers(headers)
             .user_agent(crate::USER_AGENT)
             .proxy(Proxy::http(proxy)?)
+            .timeout(Duration::from_secs(30))
             .build()?;
 
         Ok(client)
@@ -154,6 +156,12 @@ impl DuckDuckRequester {
         let query = urlencoding::encode(&query).to_string();
 
         let client = self.build_client()?;
+
+        let data = client
+            .get("https://lite.duckduckgo.com/lite/")
+            .send()
+            .await?;
+        let _ = data.text().await?;
 
         let result = client
             .get(format!(
