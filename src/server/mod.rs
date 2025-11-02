@@ -65,6 +65,7 @@ impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
                     .not_found_service(ServeFile::new("assets/404.html")),
             )
             .route_service("/browse/", get(Self::browse_handler))
+            .route_service("/next/", get(Self::next_page_handler))
             .route_service("/", get(Self::root_path_handler))
             .fallback_service(ServeFile::new("assets/404.html"))
             .layer(TraceLayer::new_for_http())
@@ -106,6 +107,29 @@ impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
         Html(result)
     }
 
+    async fn next_page_handler(
+        Query(params): Query<HashMap<String, String>>,
+        Extension(ext): Extension<Arc<Context<A, B>>>,
+    ) -> impl IntoResponse {
+        let ext = Arc::clone(&ext);
+
+        let query = params.get("q").unwrap_or(&"".to_string()).clone();
+
+        let result = ext
+            .search_service
+            .next_page(params)
+            .await
+            .and_then(|r| serp_result_page(query, r))
+            .map(Html);
+
+        match result {
+            Ok(r) => r,
+            Err(e) => build_error_page(e.to_string())
+                .map(Html)
+                .unwrap_or(Html("<h1>Internal error</h1>".to_string())),
+        }
+    }
+
     async fn root_path_handler(
         Query(query_params): Query<HashMap<String, String>>,
         Extension(ext): Extension<Arc<Context<A, B>>>,
@@ -117,17 +141,6 @@ impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
             .unwrap_or(&"".to_string())
             .clone();
 
-        let serpapi_left = ext
-            .serpapi
-            .account()
-            .await
-            .ok()
-            .and_then(|o| {
-                o.get("total_searches_left");
-                o.as_u64()
-            })
-            .unwrap_or(0u64);
-
         let result = match q {
             Some(query) => {
                 let result = ext
@@ -137,7 +150,20 @@ impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
 
                 result.and_then(|result| serp_result_page(query.clone(), result))
             }
-            None => build_home_page(serpapi_left),
+            None => {
+                let serpapi_left = ext
+                    .serpapi
+                    .account()
+                    .await
+                    .ok()
+                    .and_then(|o| {
+                        o.get("total_searches_left");
+                        o.as_u64()
+                    })
+                    .unwrap_or(0u64);
+
+                build_home_page(serpapi_left)
+            }
         };
 
         match result {

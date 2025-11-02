@@ -64,10 +64,9 @@ impl DuckDuckRequester {
             .into_owned()
             .collect::<HashMap<String, String>>();
 
-        let target = query
-            .get("uddg")
-            .ok_or(anyhow::anyhow!("Url changed format?!"))?;
-        let target = urlencoding::decode(target)?.to_string();
+        let target = query.get("uddg").cloned().unwrap_or(dd_url.to_string());
+
+        let target = urlencoding::decode(&target)?.to_string();
 
         Ok(Serp {
             link: target,
@@ -96,15 +95,22 @@ impl DuckDuckRequester {
             warn!("No hidden input on serp result page!");
         }
 
-        if let Ok(table) = page.select("table")
-            && let Some(results) = table.last()
-            && let Some(items) = results.as_node().select("tr").ok()
-        {
-            let items = items.chunks(4);
-            for item in &items {
-                let item = item.collect::<Vec<_>>();
-                if let Ok(serp) = Self::try_extract_serp(item) {
-                    serp_items.push(serp);
+        if let Ok(tables) = page.select("table") {
+            for table in tables {
+                if table.as_node().select("a.result-link").is_ok() {
+                    info!("Found!!");
+
+                    if let Ok(items) = table.as_node().select("tr") {
+                        let items = items.chunks(4);
+                        for item in &items {
+                            let item = item.collect::<Vec<_>>();
+
+                            match Self::try_extract_serp(item) {
+                                Ok(serp) => serp_items.push(serp),
+                                Err(e) => warn!("Error happens: {e:?}"),
+                            }
+                        }
+                    }
                 }
             }
         } else {

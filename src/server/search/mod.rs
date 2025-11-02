@@ -5,7 +5,7 @@ pub mod view;
 use censor::Censor;
 use serde::Deserialize;
 
-use log::warn;
+use log::{info, warn};
 use std::collections::HashMap;
 
 #[derive(Clone, Deserialize, Debug)]
@@ -82,8 +82,10 @@ impl<A: SearchProvider, B: SearchProvider> SearchEngine<A, B> {
         inputs: HashMap<String, String>,
     ) -> anyhow::Result<SearchResponse> {
         if inputs.contains_key("premium") {
+            info!("Premium next page");
             self.premium.next_page(inputs).await
         } else {
+            info!("Free next page");
             self.free.next_page(inputs).await
         }
     }

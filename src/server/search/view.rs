@@ -36,7 +36,7 @@ pub fn serp_result_page(query: String, serp_result: SearchResponse) -> anyhow::R
                         <br/>
                     }
 
-                    <form>
+                    <form method="get" action="/next/">
                         #for (k,v) in &serp_result.inputs {
                             <input type="hidden" name={k} value={v} />
                         }
@@ -76,7 +76,7 @@ pub fn build_home_page(serpapi_left: u64) -> anyhow::Result<String> {
                         Left {serpapi_left} search queries on SerpAPI account
                         <small>SerpAPI uses Google as source, in other case - we are using DuckDuckGo</small> <br/>
                     }
-                    
+
                     <input type="submit" value="Search!"/>
                 </form>
             </center>
