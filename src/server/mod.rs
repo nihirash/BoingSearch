@@ -143,6 +143,8 @@ impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
 
         let result = match q {
             Some(query) => {
+                info!("Query: {query}");
+
                 let result = ext
                     .search_service
                     .first_search(query.clone(), premium)
