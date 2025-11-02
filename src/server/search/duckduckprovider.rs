@@ -42,11 +42,11 @@ impl DuckDuckRequester {
 
     fn try_extract_serp(data: Vec<NodeDataRef<ElementData>>) -> anyhow::Result<Serp> {
         let first_line = data.first().ok_or(anyhow::anyhow!("Data line absent"))?;
-        let snippet_line = data.get(1).ok_or(anyhow::anyhow!("Snippet line absent"))?;
+        let snippet_line = data.get(1).ok_or(anyhow::anyhow!("Snippet line absent"));
         let url_line = data.get(2).ok_or(anyhow::anyhow!("Url line absent"))?;
 
         let display_url = url_line.text_contents();
-        let snippet = snippet_line.text_contents();
+        let snippet = snippet_line.map(|s| s.text_contents()).ok();
 
         let link = first_line
             .as_node()
@@ -70,9 +70,9 @@ impl DuckDuckRequester {
 
         Ok(Serp {
             link: target,
-            displayed_link: display_url,
-            title: head_text,
-            snippet: Some(snippet),
+            displayed_link: deunicode::deunicode(&display_url),
+            title: deunicode::deunicode(&head_text),
+            snippet: snippet,
         })
     }
 
