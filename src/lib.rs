@@ -11,6 +11,8 @@ pub struct AppConfig {
     pub port: u16,
     pub api_key: String,
     pub base_path: Url,
+    pub rate_limit: i64,
+    pub proxies: Vec<String>,
 }
 
 impl AppConfig {

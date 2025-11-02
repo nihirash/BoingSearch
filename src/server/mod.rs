@@ -1,4 +1,3 @@
-pub mod freeserp;
 pub mod search;
 pub mod simplifier;
 
@@ -10,43 +9,53 @@ use axum::extract::Query;
 use axum::response::{Html, IntoResponse};
 use axum::{Router, routing::get};
 use log::info;
+use serpapi_search_rust::serp_api_search::SerpApiSearch;
 use templr::Template;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 use url::Url;
 
 use crate::AppConfig;
-use crate::server::search::SearchRequester;
+use crate::server::search::view::{build_error_page, build_home_page, serp_result_page};
+use crate::server::search::{SearchEngine, SearchProvider};
 use crate::server::simplifier::{process_page, proxy_page};
 
 #[derive(Clone)]
-pub struct Server {
+pub struct Server<A: SearchProvider, B: SearchProvider> {
     pub host: String,
     pub port: u16,
-    pub search_requester: Arc<SearchRequester>,
+    pub search_service: Arc<SearchEngine<A, B>>,
     pub base_path: Url,
+    pub api_key: String,
 }
 
 #[derive(Clone)]
-pub struct Context {
-    pub search_requester: Arc<SearchRequester>,
+pub struct Context<A: SearchProvider, B: SearchProvider> {
+    pub search_service: Arc<SearchEngine<A, B>>,
     pub base_path: String,
+    pub serpapi: Arc<SerpApiSearch>,
 }
 
-impl Server {
-    pub fn new(app_config: AppConfig, search_requester: SearchRequester) -> Self {
+impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
+    pub fn new(app_config: AppConfig, search_service: SearchEngine<A, B>) -> Self {
         Server {
             host: app_config.host.clone(),
             port: app_config.port,
-            search_requester: Arc::new(search_requester),
+            search_service: Arc::new(search_service.clone()),
             base_path: app_config.base_path.clone(),
+            api_key: app_config.api_key,
         }
     }
 
     pub async fn start(&self) -> anyhow::Result<()> {
         let context = Arc::new(Context {
-            search_requester: self.search_requester.clone(),
+            search_service: self.search_service.clone(),
             base_path: self.base_path.to_string(),
+            serpapi: Arc::new(serpapi_search_rust::serp_api_search::SerpApiSearch::new(
+                "google".to_string(),
+                HashMap::new(),
+                self.api_key.clone(),
+            )),
         });
 
         let router: Router = axum::Router::new()
@@ -73,7 +82,7 @@ impl Server {
 
     async fn browse_handler(
         Query(query_params): Query<HashMap<String, String>>,
-        Extension(ext): Extension<Arc<Context>>,
+        Extension(ext): Extension<Arc<Context<A, B>>>,
     ) -> impl IntoResponse {
         let url = query_params.get("url").cloned().unwrap_or("".to_string());
 
@@ -99,10 +108,43 @@ impl Server {
 
     async fn root_path_handler(
         Query(query_params): Query<HashMap<String, String>>,
-        Extension(ext): Extension<Arc<Context>>,
-    ) -> impl IntoResponse + use<> {
+        Extension(ext): Extension<Arc<Context<A, B>>>,
+    ) -> impl IntoResponse {
         let ext = Arc::clone(&ext);
+        let q = query_params.get("q");
+        let premium = query_params
+            .get("premium")
+            .unwrap_or(&"".to_string())
+            .clone();
 
-        ext.search_requester.root_path_handler(query_params).await
+        let serpapi_left = ext
+            .serpapi
+            .account()
+            .await
+            .ok()
+            .and_then(|o| {
+                o.get("total_searches_left");
+                o.as_u64()
+            })
+            .unwrap_or(0u64);
+
+        let result = match q {
+            Some(query) => {
+                let result = ext
+                    .search_service
+                    .first_search(query.clone(), premium)
+                    .await;
+
+                result.and_then(|result| serp_result_page(query.clone(), result))
+            }
+            None => build_home_page(serpapi_left),
+        };
+
+        match result {
+            Ok(r) => Html(r),
+            Err(e) => build_error_page(e.to_string())
+                .map(Html)
+                .unwrap_or(Html("<h1>Internal error</h1>".to_string())),
+        }
     }
 }

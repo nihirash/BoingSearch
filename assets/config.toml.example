@@ -2,3 +2,5 @@ host = "0.0.0.0"
 port = 8808
 api_key = "serpapi-key"
 base_path = "http://192.168.1.147:8808/"
+proxies = ["http://127.0.0.1/", "http://login:password@example.com:8085"]
+rate_limit = 2

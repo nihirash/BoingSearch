@@ -1,5 +1,12 @@
-use boing_search::server::search::SearchRequester;
-use boing_search::{AppConfig, server::Server};
+use boing_search::{
+    AppConfig,
+    server::{
+        Server,
+        search::{
+            SearchEngine, duckduckprovider::DuckDuckRequester, serpapiprovider::SerpApiProvider,
+        },
+    },
+};
 use log::{debug, info};
 
 #[tokio::main]
@@ -12,9 +19,12 @@ async fn main() -> anyhow::Result<()> {
 
     debug!("Starting with config: {app_config:?}");
 
-    let search_requester = SearchRequester::new(app_config.api_key.clone());
+    let free = DuckDuckRequester::new(app_config.rate_limit, app_config.proxies.clone());
+    let premium = SerpApiProvider::new(app_config.api_key.clone());
 
-    Server::new(app_config, search_requester).start().await?;
+    let search_engine = SearchEngine::new(free, premium);
+
+    Server::new(app_config, search_engine).start().await?;
 
     Ok(())
 }
