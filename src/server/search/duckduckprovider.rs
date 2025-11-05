@@ -124,8 +124,11 @@ impl DuckDuckRequester {
 
     fn build_client(&self) -> anyhow::Result<Client> {
         let mut headers = HeaderMap::new();
-        headers.append(ACCEPT, "text/html".parse()?);
-        headers.append(ACCEPT_LANGUAGE, "en-US,en;q=0.9".parse()?);
+        headers.append(
+            ACCEPT,
+            "text/html, text/plain, text/sgml, text/css, */*;q=0.01".parse()?,
+        );
+        headers.append(ACCEPT_LANGUAGE, "en".parse()?);
         headers.append(CONNECTION, "close".parse()?);
 
         let idx = self
@@ -142,11 +145,12 @@ impl DuckDuckRequester {
         let client = reqwest::Client::builder()
             .cookie_store(true)
             .http1_only()
-            .redirect(Policy::limited(30))
+            .redirect(Policy::limited(2))
             .default_headers(headers)
             .user_agent(crate::USER_AGENT)
             .proxy(Proxy::http(proxy)?)
-            .timeout(Duration::from_secs(30))
+            .proxy(Proxy::https(proxy)?)
+            .timeout(Duration::from_secs(10))
             .build()?;
 
         Ok(client)
@@ -164,9 +168,7 @@ impl DuckDuckRequester {
         let _ = data.text().await?;
 
         let result = client
-            .get(format!(
-                "https://lite.duckduckgo.com/lite/?kl=wt-wt&q={query}"
-            ))
+            .get(format!("https://lite.duckduckgo.com/lite/?q={query}"))
             .send()
             .await?;
         let page_txt = result.text().await?;

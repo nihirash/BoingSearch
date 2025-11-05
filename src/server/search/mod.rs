@@ -40,10 +40,16 @@ pub struct SearchEngine<A: SearchProvider, B: SearchProvider> {
 
 impl<A: SearchProvider, B: SearchProvider> SearchEngine<A, B> {
     pub fn new(free: A, premium: B) -> Self {
+        let censor_words = include_str!("../../../assets/censorwords.txt").lines();
+        let mut censor = Censor::Sex + Censor::Standard;
+        for word in censor_words {
+            censor = censor + word;
+        }
+
         Self {
             free,
             premium,
-            censor: Censor::Standard + Censor::Sex + "porn" + "ero" + "erotic",
+            censor,
         }
     }
 

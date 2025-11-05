@@ -3,7 +3,7 @@ pub mod server;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
+pub const USER_AGENT: &str = "Lynx/2.9.2 libwww-FM/2.14 SSL-MM/1.4.1 OpenSSL/3.6.0";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppConfig {
