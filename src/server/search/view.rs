@@ -35,13 +35,6 @@ pub fn serp_result_page(query: String, serp_result: SearchResponse) -> anyhow::R
                         #render_serp_item(item.clone());
                         <br/>
                     }
-
-                    <form method="get" action="/next/">
-                        #for (k,v) in &serp_result.inputs {
-                            <input type="hidden" name={k} value={v} />
-                        }
-                        <center><input type="submit" value="Next page" /></center>
-                    </form>
                 #build_footer();
             </body>
             </html>
@@ -130,6 +123,8 @@ fn build_footer() -> templ_ret!['static] {
     templ! {
             <br/>
             <br/>
+            <center>Changelog available <a href="/static/changelog.html">here</a></center>
+            <hr/>
             <center>Inspired by FrogFing by ActionRetro, Recreated from scratch by <b>Nihirash</b></center>
             <center>You can <a href="/static/support.html">support this project</a> with donations!</center>
             <center>Powered by SerpAPI, DuckDuckGo and some magic</center>

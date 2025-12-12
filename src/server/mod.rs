@@ -1,3 +1,4 @@
+pub mod image;
 pub mod search;
 pub mod simplifier;
 
@@ -6,9 +7,11 @@ use std::sync::Arc;
 
 use axum::Extension;
 use axum::extract::Query;
+use axum::http::header;
 use axum::response::{Html, IntoResponse};
 use axum::{Router, routing::get};
-use log::info;
+use log::{debug, info, warn};
+use serde::Deserialize;
 use serpapi_search_rust::serp_api_search::SerpApiSearch;
 use templr::Template;
 use tower_http::services::{ServeDir, ServeFile};
@@ -16,9 +19,15 @@ use tower_http::trace::TraceLayer;
 use url::Url;
 
 use crate::AppConfig;
+use crate::server::image::get_converted_picture;
 use crate::server::search::view::{build_error_page, build_home_page, serp_result_page};
 use crate::server::search::{SearchEngine, SearchProvider};
 use crate::server::simplifier::{process_page, proxy_page};
+
+#[derive(Clone, Debug, Deserialize)]
+struct ConvertPngRequest {
+    pub url: String,
+}
 
 #[derive(Clone)]
 pub struct Server<A: SearchProvider, B: SearchProvider> {
@@ -64,8 +73,8 @@ impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
                 ServeDir::new("assets/static/")
                     .not_found_service(ServeFile::new("assets/404.html")),
             )
+            .route("/convert.png", get(Self::convert_png))
             .route_service("/browse/", get(Self::browse_handler))
-            .route_service("/next/", get(Self::next_page_handler))
             .route_service("/", get(Self::root_path_handler))
             .fallback_service(ServeFile::new("assets/404.html"))
             .layer(TraceLayer::new_for_http())
@@ -107,26 +116,20 @@ impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
         Html(result)
     }
 
-    async fn next_page_handler(
-        Query(params): Query<HashMap<String, String>>,
-        Extension(ext): Extension<Arc<Context<A, B>>>,
-    ) -> impl IntoResponse {
-        let ext = Arc::clone(&ext);
+    async fn convert_png(request: Query<ConvertPngRequest>) -> impl IntoResponse {
+        match get_converted_picture(&request.url).await {
+            Err(e) => {
+                warn!("Image converting error: {e}");
 
-        let query = params.get("q").unwrap_or(&"".to_string()).clone();
-
-        let result = ext
-            .search_service
-            .next_page(params)
-            .await
-            .and_then(|r| serp_result_page(query, r))
-            .map(Html);
-
-        match result {
-            Ok(r) => r,
-            Err(e) => build_error_page(e.to_string())
-                .map(Html)
-                .unwrap_or(Html("<h1>Internal error</h1>".to_string())),
+                (
+                    axum::response::AppendHeaders([(header::CONTENT_TYPE, "image/png")]),
+                    Vec::new(),
+                )
+            }
+            Ok(response) => (
+                axum::response::AppendHeaders([(header::CONTENT_TYPE, "image/png")]),
+                response,
+            ),
         }
     }
 
@@ -153,18 +156,15 @@ impl<A: SearchProvider, B: SearchProvider> Server<A, B> {
                 result.and_then(|result| serp_result_page(query.clone(), result))
             }
             None => {
-                let serpapi_left = ext
-                    .serpapi
-                    .account()
-                    .await
-                    .ok()
-                    .and_then(|o| {
-                        o.get("total_searches_left");
-                        o.as_u64()
-                    })
-                    .unwrap_or(0u64);
+                let serpapi_left = ext.serpapi.account().await.ok();
 
-                build_home_page(serpapi_left)
+                debug!("SerpApi left: {serpapi_left:?}");
+
+                let serpapi_left = serpapi_left
+                    .and_then(|o| o.get("total_searches_left").cloned())
+                    .and_then(|n| n.as_u64());
+
+                build_home_page(serpapi_left.unwrap_or(0))
             }
         };
 

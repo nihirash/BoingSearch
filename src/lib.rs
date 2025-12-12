@@ -3,7 +3,8 @@ pub mod server;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-pub const USER_AGENT: &str = "Lynx/2.9.2 libwww-FM/2.14 SSL-MM/1.4.1 OpenSSL/3.6.0";
+pub const USER_AGENT: &str =
+    "Mozilla/5.0 (compatible; IBrowse 3.0; AmigaOS4.0) BoingSearch/Preview Mode";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppConfig {
