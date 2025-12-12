@@ -26,7 +26,7 @@ pub fn simplify_html(input: String, base: String) -> anyhow::Result<String> {
         "h4",
         "h5",
         "h6",
-        //        "img"
+        "img"
     ];
 
     let mut readability = readable_readability::Readability::new();
@@ -63,6 +63,7 @@ pub fn simplify_html(input: String, base: String) -> anyhow::Result<String> {
 pub fn replacements(input: String, base_path: String) -> String {
     // Replacing url to proxy
     let r = input.replace("href=\"http", &format!("href=\"{base_path}?url=http"));
+    let r = r.replace("src=\"http", "src=\"/convert.png?url=http");
     // Some minor compatibility adaptations
     let r = r.replace("strong>", "b>");
 

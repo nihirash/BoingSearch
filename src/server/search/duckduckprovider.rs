@@ -11,6 +11,7 @@ use reqwest::header::ACCEPT;
 use reqwest::header::ACCEPT_LANGUAGE;
 use reqwest::header::CONNECTION;
 use reqwest::header::HeaderMap;
+use reqwest::header::REFERER;
 use reqwest::redirect::Policy;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -80,21 +81,6 @@ impl DuckDuckRequester {
     fn parse_serp_result(page_txt: String) -> anyhow::Result<SearchResponse> {
         let page = parse_html().one(page_txt.clone());
         let mut serp_items: Vec<Serp> = Vec::new();
-        let mut hidden_inputs: HashMap<String, String> = HashMap::new();
-
-        if let Ok(inputs) = page.select("form.next_form>input[type=hidden]") {
-            let inputs = inputs.collect::<Vec<_>>();
-            for input in inputs {
-                let attrs = input.attributes.borrow();
-                if let Some(name) = attrs.get("name")
-                    && let Some(v) = attrs.get("value")
-                {
-                    hidden_inputs.insert(name.to_string(), v.to_string());
-                }
-            }
-        } else {
-            warn!("No hidden input on serp result page!");
-        }
 
         if let Ok(tables) = page.select("table") {
             for table in tables {
@@ -118,11 +104,16 @@ impl DuckDuckRequester {
 
         Ok(SearchResponse {
             serp: serp_items,
-            inputs: hidden_inputs,
+            inputs: HashMap::new(),
         })
     }
 
-    fn build_client(&self) -> anyhow::Result<Client> {
+    fn get_next_proxy(&self) -> usize {
+        self.proxy_counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn build_client_for_proxy(&self, idx: usize) -> anyhow::Result<Client> {
         let mut headers = HeaderMap::new();
         headers.append(
             ACCEPT,
@@ -130,10 +121,7 @@ impl DuckDuckRequester {
         );
         headers.append(ACCEPT_LANGUAGE, "en".parse()?);
         headers.append(CONNECTION, "close".parse()?);
-
-        let idx = self
-            .proxy_counter
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        headers.append(REFERER, " https://lite.duckduckgo.com/".parse()?);
 
         let proxy = self
             .proxies
@@ -159,7 +147,8 @@ impl DuckDuckRequester {
     async fn make_serp_request_inner(&self, query: String) -> anyhow::Result<SearchResponse> {
         let query = urlencoding::encode(&query).to_string();
 
-        let client = self.build_client()?;
+        let pr_id = self.get_next_proxy();
+        let client = self.build_client_for_proxy(pr_id)?;
 
         let data = client
             .get("https://lite.duckduckgo.com/lite/")
@@ -204,21 +193,6 @@ impl SearchProvider for DuckDuckRequester {
         self.wait().await;
         self.make_serp_request_inner(query).await
     }
-
-    async fn next_page(&self, inputs: HashMap<String, String>) -> anyhow::Result<SearchResponse> {
-        self.wait().await;
-        let client = self.build_client()?;
-
-        let r = client
-            .post("https://lite.duckduckgo.com/lite/")
-            .form(&inputs)
-            .send()
-            .await?;
-
-        let page_txt = r.text().await?;
-
-        Self::parse_serp_result(page_txt)
-    }
 }
 
 #[tokio::test]
@@ -230,12 +204,8 @@ async fn test_new_free_serp_provider() -> anyhow::Result<()> {
     let provider = DuckDuckRequester::new(1, app_conf.proxies);
 
     let result = provider
-        .make_serp_request("Amiga 40 reddit".to_string())
+        .make_serp_request("Serp parsing services".to_string())
         .await?;
-
-    info!("{result:#?}");
-
-    let result = provider.next_page(result.inputs).await;
 
     info!("{result:#?}");
 

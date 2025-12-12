@@ -5,7 +5,7 @@ pub mod view;
 use censor::Censor;
 use serde::Deserialize;
 
-use log::{info, warn};
+use log::warn;
 use std::collections::HashMap;
 
 #[derive(Clone, Deserialize, Debug)]
@@ -26,9 +26,6 @@ pub struct SearchResponse {
 pub trait SearchProvider: Clone + Sync + Send + 'static {
     /// Make first search request
     async fn make_serp_request(&self, query: String) -> anyhow::Result<SearchResponse>;
-
-    /// Pagination to next page
-    async fn next_page(&self, inputs: HashMap<String, String>) -> anyhow::Result<SearchResponse>;
 }
 
 #[derive(Clone)]
@@ -43,7 +40,7 @@ impl<A: SearchProvider, B: SearchProvider> SearchEngine<A, B> {
         let censor_words = include_str!("../../../assets/censorwords.txt").lines();
         let mut censor = Censor::Sex + Censor::Standard;
         for word in censor_words {
-            censor = censor + word;
+            censor += word;
         }
 
         Self {
@@ -80,19 +77,6 @@ impl<A: SearchProvider, B: SearchProvider> SearchEngine<A, B> {
                     self.free.make_serp_request(query).await
                 }
             }
-        }
-    }
-
-    pub async fn next_page(
-        &self,
-        inputs: HashMap<String, String>,
-    ) -> anyhow::Result<SearchResponse> {
-        if inputs.contains_key("premium") {
-            info!("Premium next page");
-            self.premium.next_page(inputs).await
-        } else {
-            info!("Free next page");
-            self.free.next_page(inputs).await
         }
     }
 }

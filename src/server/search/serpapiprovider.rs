@@ -57,25 +57,4 @@ impl SearchProvider for SerpApiProvider {
 
         Ok(SearchResponse { serp, inputs })
     }
-
-    async fn next_page(&self, inputs: HashMap<String, String>) -> anyhow::Result<SearchResponse> {
-        let query = inputs
-            .get("q")
-            .ok_or(anyhow::anyhow!("Query not provided!"))?
-            .clone();
-        let offset = inputs
-            .get("offset")
-            .ok_or(anyhow::anyhow!("Offset not provided"))?
-            .clone();
-        let offset: u32 = str::parse(&offset)?;
-
-        let serp = self.get_serp(query.clone(), Some(offset)).await?;
-
-        let mut inputs = HashMap::new();
-        inputs.insert("q".to_string(), query);
-        inputs.insert("offset".to_string(), (offset + 10).to_string());
-        inputs.insert("premium".to_string(), "checked".to_string());
-
-        Ok(SearchResponse { serp, inputs })
-    }
 }
