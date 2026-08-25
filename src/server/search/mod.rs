@@ -32,16 +32,22 @@ pub trait SearchProvider: Clone + Sync + Send + 'static {
 pub struct SearchEngine<A: SearchProvider, B: SearchProvider> {
     pub free: A,
     pub premium: B,
-    pub censor: Censor,
+    pub censor: Option<Censor>,
 }
 
 impl<A: SearchProvider, B: SearchProvider> SearchEngine<A, B> {
-    pub fn new(free: A, premium: B) -> Self {
-        let censor_words = include_str!("../../../assets/censorwords.txt").lines();
-        let mut censor = Censor::Sex + Censor::Standard;
-        for word in censor_words {
-            censor += word;
-        }
+    pub fn new(free: A, premium: B, censor_enabled: bool) -> Self {
+        let censor = if censor_enabled {
+            let censor_words = include_str!("../../../assets/censorwords.txt").lines();
+            let mut censor = Censor::Sex + Censor::Standard;
+            for word in censor_words {
+                censor += word;
+            }
+
+            Some(censor)
+        } else {
+            None
+        };
 
         Self {
             free,
@@ -55,8 +61,10 @@ impl<A: SearchProvider, B: SearchProvider> SearchEngine<A, B> {
         query: String,
         premium: String,
     ) -> anyhow::Result<SearchResponse> {
-        if self.censor.check(&query) {
-            anyhow::bail!("Your request was denied by internal rules");
+        if let Some(censor) = &self.censor {
+            if censor.check(&query) {
+                anyhow::bail!("Your request was denied by internal rules");
+            }
         }
 
         if premium.is_empty() {

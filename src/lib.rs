@@ -14,6 +14,12 @@ pub struct AppConfig {
     pub base_path: Url,
     pub rate_limit: i64,
     pub proxies: Vec<String>,
+    #[serde(default = "default_censor")]
+    pub censor: bool,
+}
+
+fn default_censor() -> bool {
+    true
 }
 
 impl AppConfig {

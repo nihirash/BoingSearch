@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
     let free = DuckDuckRequester::new(app_config.rate_limit, app_config.proxies.clone());
     let premium = SerpApiProvider::new(app_config.api_key.clone());
 
-    let search_engine = SearchEngine::new(free, premium);
+    let search_engine = SearchEngine::new(free, premium, app_config.censor);
 
     Server::new(app_config, search_engine).start().await?;
 
